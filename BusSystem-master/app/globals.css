@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f4f6fa;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --fg: #0f172a;
+  --fg-muted: #475569;
+  --fg-subtle: #64748b;
+}
+
+.dark {
+  --background: #0b1120;
+  --surface: #111827;
+  --surface-muted: #1e293b;
+  --line: #263244;
+  --line-strong: #3b4a60;
+  --fg: #f1f5f9;
+  --fg-muted: #94a3b8;
+  --fg-subtle: #64748b;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+
+  /* Unified Brand Palette (Web + Mobile SRS Alignment) */
+  --color-brand-50: #ebf1fc;
+  --color-brand-100: #d6e3fa;
+  --color-brand-500: #1b4aa8;
+  --color-brand-600: #133883;
+  --color-brand-700: #0d275c;
+
+  --color-accent-50: #fef6e0;
+  --color-accent-500: #e0a100;
+  --color-accent-600: #b88200;
+
+  --font-sans: var(--font-cairo), system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--fg);
+  font-family: var(--font-cairo), system-ui, -apple-system, sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-area {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .print-area[data-print-format="80mm"] {
+    max-width: 76mm !important;
+    padding: 4mm !important;
+    font-size: 11px !important;
+  }
+
+  .print-area[data-print-format="a5"] {
+    max-width: 142mm !important;
+    padding: 8mm !important;
+  }
+}

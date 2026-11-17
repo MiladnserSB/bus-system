@@ -1,0 +1,448 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+  CUSTOMER
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+  WEB
+}
+
+enum BusCategory {
+  STANDARD
+  FIRST_CLASS
+  BUSINESS
+}
+
+enum BusSize {
+  LARGE
+  MEDIUM
+}
+
+enum SeatSide {
+  LEFT
+  RIGHT
+  MIDDLE
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TripStatus {
+  SCHEDULED
+  OPEN
+  FULL
+  CLOSED
+  DEPARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingChannel {
+  ADMIN_WEB
+  MOBILE
+}
+
+enum PaymentMethod {
+  CASH_OFFICE
+  CASH_ON_BOARDING
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  TRIP_REMINDER_24H
+  TRIP_REMINDER_3H
+  TRIP_CANCELLED
+  TRIP_TIME_CHANGED
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  IN_APP
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum JobRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  name                String    @db.VarChar(120)
+  username            String?   @unique @db.VarChar(60)
+  email               String?   @unique @db.VarChar(160)
+  phone               String    @unique @db.VarChar(20)
+  passwordHash        String?   @map("password_hash")
+  role                Role      @default(CUSTOMER)
+  isActive            Boolean   @default(true) @map("is_active")
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+  tokenVersion        Int       @default(0) @map("token_version")
+  consentAcceptedAt   DateTime? @map("consent_accepted_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens          RefreshToken[]
+  devices                UserDevice[]
+  createdTrips           Trip[]                  @relation("TripCreatedBy")
+  cancelledTrips         Trip[]                  @relation("TripCancelledBy")
+  createdTemplates       TripTemplate[]          @relation("TemplateCreatedBy")
+  customerBookings       Booking[]               @relation("BookingOwner")
+  createdBookings        Booking[]               @relation("BookingCreatedBy")
+  cancelledBookings      Booking[]               @relation("BookingCancelledBy")
+  cancelledBookingSeats  BookingSeat[]           @relation("BookingSeatCancelledBy")
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
+  auditLogs              AuditLog[]
+  updatedSettings        Setting[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model UserDevice {
+  id         Int            @id @default(autoincrement())
+  userId     Int            @map("user_id")
+  fcmToken   String         @unique @map("fcm_token") @db.VarChar(512)
+  platform   DevicePlatform @default(ANDROID)
+  isActive   Boolean        @default(true) @map("is_active")
+  lastSeenAt DateTime       @default(now()) @map("last_seen_at")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("user_devices")
+}
+
+model City {
+  id        Int      @id @default(autoincrement())
+  nameAr    String   @unique @map("name_ar") @db.VarChar(100)
+  nameEn    String?  @unique @map("name_en") @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  originTrips          Trip[]         @relation("TripOriginCity")
+  destinationTrips     Trip[]         @relation("TripDestinationCity")
+  originTemplates      TripTemplate[] @relation("TemplateOriginCity")
+  destinationTemplates TripTemplate[] @relation("TemplateDestinationCity")
+
+  @@map("cities")
+}
+
+model BusType {
+  id               Int         @id @default(autoincrement())
+  code             String      @unique @db.VarChar(50)
+  nameAr           String      @unique @map("name_ar") @db.VarChar(120)
+  nameEn           String?     @map("name_en") @db.VarChar(120)
+  category         BusCategory
+  size             BusSize
+  layout           String      @db.VarChar(10)
+  rowsCount        Int         @map("rows_count")
+  hasExtraBackSeat Boolean     @default(false) @map("has_extra_back_seat")
+  totalSeats       Int         @map("total_seats")
+  isActive         Boolean     @default(true) @map("is_active")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  seatTemplates SeatTemplate[]
+  buses         Bus[]
+  trips         Trip[]
+  tripTemplates TripTemplate[]
+
+  @@map("bus_types")
+}
+
+model SeatTemplate {
+  id         Int      @id @default(autoincrement())
+  busTypeId  Int      @map("bus_type_id")
+  seatNumber String   @map("seat_number") @db.VarChar(10)
+  rowNumber  Int      @map("row_number")
+  colLetter  String   @map("col_letter") @db.VarChar(4)
+  side       SeatSide
+  colIndex   Int      @map("col_index")
+  isExtra    Boolean  @default(false) @map("is_extra")
+
+  busType BusType @relation(fields: [busTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([busTypeId, seatNumber])
+  @@index([busTypeId, rowNumber, colIndex])
+  @@map("seat_templates")
+}
+
+model Bus {
+  id          Int      @id @default(autoincrement())
+  plateNumber String   @unique @map("plate_number") @db.VarChar(40)
+  busTypeId   Int      @map("bus_type_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  busType       BusType        @relation(fields: [busTypeId], references: [id])
+  trips         Trip[]
+  tripTemplates TripTemplate[]
+
+  @@map("buses")
+}
+
+model TripTemplate {
+  id                Int            @id @default(autoincrement())
+  originId          Int            @map("origin_id")
+  destinationId     Int            @map("destination_id")
+  busTypeId         Int            @map("bus_type_id")
+  busId             Int?           @map("bus_id")
+  price             Decimal        @db.Decimal(12, 2)
+  departureTime     String         @map("departure_time") @db.VarChar(5)
+  recurrence        RecurrenceType
+  daysOfWeek        Int[]          @default([]) @map("days_of_week")
+  dayOfMonth        Int?           @map("day_of_month")
+  startDate         DateTime       @map("start_date") @db.Date
+  endDate           DateTime?      @map("end_date") @db.Date
+  generateAheadDays Int            @default(30) @map("generate_ahead_days")
+  isActive          Boolean        @default(true) @map("is_active")
+  createdById       Int?           @map("created_by_id")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  origin      City                @relation("TemplateOriginCity", fields: [originId], references: [id])
+  destination City                @relation("TemplateDestinationCity", fields: [destinationId], references: [id])
+  busType     BusType             @relation(fields: [busTypeId], references: [id])
+  bus         Bus?                @relation(fields: [busId], references: [id])
+  createdBy   User?               @relation("TemplateCreatedBy", fields: [createdById], references: [id])
+  exclusions  TemplateExclusion[]
+  trips       Trip[]
+
+  @@map("trip_templates")
+}
+
+model TemplateExclusion {
+  id           Int      @id @default(autoincrement())
+  templateId   Int      @map("template_id")
+  excludedDate DateTime @map("excluded_date") @db.Date
+  reason       String?  @db.VarChar(200)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  template TripTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, excludedDate])
+  @@map("template_exclusions")
+}
+
+model Trip {
+  id            Int        @id @default(autoincrement())
+  templateId    Int?       @map("template_id")
+  originId      Int        @map("origin_id")
+  destinationId Int        @map("destination_id")
+  busTypeId     Int        @map("bus_type_id")
+  busId         Int?       @map("bus_id")
+  departAt      DateTime   @map("depart_at")
+  price         Decimal    @db.Decimal(12, 2)
+  status        TripStatus @default(OPEN)
+  cancelReason  String?    @map("cancel_reason") @db.VarChar(500)
+  cancelledAt   DateTime?  @map("cancelled_at")
+  cancelledById Int?       @map("cancelled_by_id")
+  createdById   Int?       @map("created_by_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  template      TripTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  origin        City           @relation("TripOriginCity", fields: [originId], references: [id])
+  destination   City           @relation("TripDestinationCity", fields: [destinationId], references: [id])
+  busType       BusType        @relation(fields: [busTypeId], references: [id])
+  bus           Bus?           @relation(fields: [busId], references: [id])
+  createdBy     User?          @relation("TripCreatedBy", fields: [createdById], references: [id])
+  cancelledBy   User?          @relation("TripCancelledBy", fields: [cancelledById], references: [id])
+  bookings      Booking[]
+  bookingSeats  BookingSeat[]
+  notifications Notification[]
+
+  @@unique([templateId, departAt])
+  @@index([departAt, originId, destinationId])
+  @@index([status, departAt])
+  @@map("trips")
+}
+
+model Booking {
+  id             Int            @id @default(autoincrement())
+  code           String         @unique @db.VarChar(32)
+  tripId         Int            @map("trip_id")
+  userId         Int?           @map("user_id")
+  createdById    Int?           @map("created_by_id")
+  channel        BookingChannel
+  contactName    String?        @map("contact_name") @db.VarChar(120)
+  contactPhone   String?        @map("contact_phone") @db.VarChar(20)
+  unitPrice      Decimal        @map("unit_price") @db.Decimal(12, 2)
+  totalPrice     Decimal        @map("total_price") @db.Decimal(12, 2)
+  paymentMethod  PaymentMethod  @default(CASH_ON_BOARDING) @map("payment_method")
+  status         BookingStatus  @default(CONFIRMED)
+  idempotencyKey String?        @unique @map("idempotency_key") @db.VarChar(128)
+  cancelledById  Int?           @map("cancelled_by_id")
+  cancelledAt    DateTime?      @map("cancelled_at")
+  cancelReason   String?        @map("cancel_reason") @db.VarChar(500)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  trip          Trip           @relation(fields: [tripId], references: [id])
+  user          User?          @relation("BookingOwner", fields: [userId], references: [id])
+  createdBy     User?          @relation("BookingCreatedBy", fields: [createdById], references: [id])
+  cancelledBy   User?          @relation("BookingCancelledBy", fields: [cancelledById], references: [id])
+  seats         BookingSeat[]
+  notifications Notification[]
+
+  @@index([tripId, status])
+  @@index([userId, createdAt])
+  @@index([contactPhone])
+  @@map("bookings")
+}
+
+model BookingSeat {
+  id             Int           @id @default(autoincrement())
+  bookingId      Int           @map("booking_id")
+  tripId         Int           @map("trip_id")
+  seatNumber     String        @map("seat_number") @db.VarChar(10)
+  passengerName  String        @map("passenger_name") @db.VarChar(120)
+  passengerPhone String        @map("passenger_phone") @db.VarChar(20)
+  unitPrice      Decimal       @map("unit_price") @db.Decimal(12, 2)
+  status         BookingStatus @default(CONFIRMED)
+  isActive       Boolean       @default(true) @map("is_active")
+  cancelledById  Int?          @map("cancelled_by_id")
+  cancelledAt    DateTime?     @map("cancelled_at")
+  cancelReason   String?       @map("cancel_reason") @db.VarChar(500)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  trip        Trip    @relation(fields: [tripId], references: [id])
+  cancelledBy User?   @relation("BookingSeatCancelledBy", fields: [cancelledById], references: [id])
+
+  // Partial unique index UNIQUE(trip_id, seat_number) WHERE is_active = true is created in Prisma migration SQL
+  @@index([passengerPhone])
+  @@index([tripId, isActive])
+  @@index([bookingId])
+  @@map("booking_seats")
+}
+
+model Notification {
+  id             Int                 @id @default(autoincrement())
+  userId         Int?                @map("user_id")
+  bookingId      Int?                @map("booking_id")
+  tripId         Int?                @map("trip_id")
+  targetPhone    String?             @map("target_phone") @db.VarChar(20)
+  type           NotificationType
+  title          String              @db.VarChar(200)
+  body           String              @db.VarChar(1000)
+  channel        NotificationChannel
+  deliveryStatus DeliveryStatus      @default(PENDING) @map("delivery_status")
+  errorMessage   String?             @map("error_message")
+  dedupeKey      String?             @unique @map("dedupe_key") @db.VarChar(160)
+  isRead         Boolean             @default(false) @map("is_read")
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  trip    Trip?    @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@index([tripId, type])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId             Int      @id @map("user_id")
+  remindersEnabled   Boolean  @default(true) @map("reminders_enabled")
+  nonCriticalEnabled Boolean  @default(true) @map("non_critical_enabled")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  action    String   @db.VarChar(80)
+  entity    String   @db.VarChar(60)
+  entityId  String   @map("entity_id") @db.VarChar(64)
+  details   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  key         String   @id @db.VarChar(80)
+  value       String   @db.VarChar(255)
+  description String?  @db.VarChar(255)
+  updatedById Int?     @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("settings")
+}
+
+model SchedulerJobLog {
+  id           Int          @id @default(autoincrement())
+  jobName      String       @map("job_name") @db.VarChar(80)
+  runKey       String       @unique @map("run_key") @db.VarChar(120)
+  status       JobRunStatus @default(RUNNING)
+  summary      Json?
+  errorMessage String?      @map("error_message")
+  startedAt    DateTime     @default(now()) @map("started_at")
+  finishedAt   DateTime?    @map("finished_at")
+
+  @@index([jobName, startedAt])
+  @@map("scheduler_job_logs")
+}
