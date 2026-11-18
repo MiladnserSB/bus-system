@@ -32,7 +32,8 @@ describe('Arabic RTL Strings & Error Code Translations', () => {
     expect(translateApiError('UNKNOWN_CODE')).toBe(API_ERROR_MESSAGES.INTERNAL_ERROR);
   });
 
-  it('keeps seat map status labels localized and accessible', () => {
+  it('keeps BusWay branding and accessible seat map labels localized', () => {
+    expect(ArStrings.app.brandName).toBe('BusWay');
     expect(ArStrings.seats.legendAvailable).toBe('متاح');
     expect(ArStrings.seats.legendBooked).toBe('محجوز');
     expect(ArStrings.seats.legendHeld).toBe('قيد الحجز');

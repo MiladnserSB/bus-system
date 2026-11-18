@@ -110,7 +110,7 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={32} color={Colors.primary} />
             </View>
             <View style={styles.identityInfo}>
-              <Text style={styles.name}>{user.name || 'عميل مسار'}</Text>
+              <Text style={styles.name}>{user.name || 'عميل BusWay'}</Text>
               <Text style={styles.phone}>{user.phone ?? ''}</Text>
             </View>
             <TouchableOpacity

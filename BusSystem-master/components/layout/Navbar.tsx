@@ -7,7 +7,6 @@ import { LogOut, Menu, Search, User } from 'lucide-react';
 import { useAuth } from '@/core/auth/AuthContext';
 import { ThemeToggle } from '@/core/theme';
 import { ArWeb } from '@/i18n/ar';
-import Container from './Container';
 
 export default function Navbar({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) {
   const { user, logout } = useAuth();
@@ -30,8 +29,9 @@ export default function Navbar({ onOpenMobileMenu }: { onOpenMobileMenu?: () => 
 
   return (
     <header className="no-print sticky top-0 z-30 border-b border-line bg-surface/90 backdrop-blur-md">
-      <Container className="flex h-16 items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* Right Side (RTL): Logo & Application Name (+ mobile menu toggle) */}
+        <div className="flex items-center gap-3 shrink-0">
           {onOpenMobileMenu ? (
             <button
               type="button"
@@ -44,20 +44,25 @@ export default function Navbar({ onOpenMobileMenu }: { onOpenMobileMenu?: () => 
           ) : null}
 
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white font-extrabold text-lg shadow-xs">
-              م
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white font-extrabold text-sm tracking-tight shadow-xs">
+              BW
             </div>
             <div>
               <span className="font-extrabold text-lg block leading-none text-fg">
                 {ArWeb.brand.name}
               </span>
-              <span className="text-[11px] text-fg-muted">{ArWeb.brand.subtitle}</span>
+              <span className="text-[11px] text-fg-muted hidden sm:block">
+                {ArWeb.brand.subtitle}
+              </span>
             </div>
           </Link>
+        </div>
 
+        {/* Left Side (RTL): Search Bar, Theme Toggle, User Profile & Role, Logout */}
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <form
             onSubmit={handleQuickSearch}
-            className="hidden md:flex items-center relative w-72"
+            className="hidden md:flex items-center relative md:w-52 lg:w-64 xl:w-72"
           >
             <Search className="absolute right-3 top-2.5 h-4 w-4 text-fg-subtle pointer-events-none" />
             <input
@@ -68,22 +73,20 @@ export default function Navbar({ onOpenMobileMenu }: { onOpenMobileMenu?: () => 
               className="w-full rounded-xl border border-line bg-surface-muted py-2 pr-9 pl-4 text-sm text-fg placeholder:text-fg-subtle focus:border-brand-600 focus:outline-none tabular-nums"
             />
           </form>
-        </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
 
           <Link
             href="/profile"
-            className="flex items-center gap-2.5 border-r border-line pr-3 mr-1 hover:opacity-80"
+            className="flex items-center gap-2.5 border-r border-line pr-3 hover:opacity-80 shrink-0"
           >
             <div className="text-right hidden sm:block">
-              <span className="block text-xs font-extrabold text-fg">
-                {user?.name ?? 'موظف مسار'}
+              <span className="block text-xs font-extrabold text-fg truncate max-w-[140px]">
+                {user?.name ?? 'موظف BusWay'}
               </span>
               <span className="block text-[11px] text-brand-600 font-bold">{roleLabel}</span>
             </div>
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-50 border border-brand-100 text-brand-600 font-bold">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 border border-brand-100 text-brand-600 font-bold">
               <User className="h-4 w-4" />
             </div>
           </Link>
@@ -93,12 +96,12 @@ export default function Navbar({ onOpenMobileMenu }: { onOpenMobileMenu?: () => 
             onClick={() => void logout()}
             title={ArWeb.nav.logout}
             aria-label={ArWeb.nav.logout}
-            className="grid h-9 w-9 place-items-center rounded-xl border border-line text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4" />
           </button>
         </div>
-      </Container>
+      </div>
     </header>
   );
 }

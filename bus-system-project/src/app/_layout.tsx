@@ -20,7 +20,7 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => voi
     <SafeAreaProvider>
       <ErrorFallback
         title="حدث خطأ غير متوقع في التطبيق"
-        message={error?.message || 'يرجى إعادة المحاولة للعودة إلى مسار.'}
+        message={error?.message || 'يرجى إعادة المحاولة للعودة إلى BusWay.'}
         actionText="إعادة المحاولة"
         onAction={retry}
         iconName="alert-circle-outline"

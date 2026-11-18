@@ -96,7 +96,7 @@ export default function TicketPrintModal({
           >
             <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
               <div>
-                <h2 className="text-lg font-extrabold text-[#133883]">شركة مسار للنقل</h2>
+                <h2 className="text-lg font-extrabold text-[#133883]">شركة BusWay للنقل</h2>
                 <p className="text-[11px] text-slate-500">تذكرة سفر إلكترونية</p>
               </div>
               <StatusBadge

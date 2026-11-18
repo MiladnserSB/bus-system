@@ -12,7 +12,7 @@ const cairo = Cairo({
 });
 
 export const metadata = {
-  title: { default: 'مسار | مركز إدارة العمليات', template: '%s | مسار' },
+  title: { default: 'BusWay | مركز إدارة العمليات', template: '%s | BusWay' },
   description: 'نظام إدارة الرحلات وحجز المقاعد لشركة النقليات بين المحافظات',
 };
 

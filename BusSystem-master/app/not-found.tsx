@@ -11,7 +11,7 @@ export default function NotFoundPage() {
         <h1 className="text-3xl font-extrabold text-fg tabular-nums">404</h1>
         <h2 className="mt-2 text-lg font-bold text-fg">الصفحة غير موجودة</h2>
         <p className="mt-2 text-sm text-fg-muted">
-          المسار الذي تحاول الوصول إليه غير متاح في لوحة إدارة مسار.
+          المسار الذي تحاول الوصول إليه غير متاح في لوحة إدارة BusWay.
         </p>
         <Link
           href="/"

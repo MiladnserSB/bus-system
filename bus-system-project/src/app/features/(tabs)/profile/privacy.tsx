@@ -33,7 +33,7 @@ export default function PrivacyPolicyScreen() {
     <ScreenContainer header={<AppHeader title={ArStrings.profile.privacyTitle} />}>
       <View style={styles.introCard}>
         <Ionicons name="shield-checkmark" size={30} color={Colors.primary} />
-        <Text style={styles.introTitle}>التزام مسار بخصوصية المسافرين</Text>
+        <Text style={styles.introTitle}>التزام BusWay بخصوصية المسافرين</Text>
         <Text style={styles.introSub}>
           نلتزم بحماية بياناتك الشخصية وفق مبادئ تقليل البيانات وحصر الاستخدام بخدمات النقل والسفر.
         </Text>

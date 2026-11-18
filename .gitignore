@@ -12,3 +12,10 @@ coverage/
 .env.local
 .env.*.local
 .DS_Store
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+bus-system-project/ios/
+bus-system-project/android/
+bus-system-project/expo-env.d.ts
+FInal SRS.pdf

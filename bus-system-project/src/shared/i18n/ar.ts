@@ -1,6 +1,6 @@
 export const ArStrings = {
   app: {
-    brandName: 'مسار',
+    brandName: 'BusWay',
     brandTagline: 'رحلات مريحة بين المحافظات السورية',
     currency: 'ل.س',
     timezoneHint: 'بتوقيت دمشق (24 ساعة)',

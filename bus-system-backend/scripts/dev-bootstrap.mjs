@@ -145,6 +145,10 @@ async function main() {
     const pgDir = join(backendDir, '.local-pgdata');
     console.log(`[dev] Starting Embedded PostgreSQL on port ${pgPort}...`);
     const isInitialized = existsSync(join(pgDir, 'PG_VERSION'));
+    const stalePidFile = join(pgDir, 'postmaster.pid');
+    if (isInitialized && existsSync(stalePidFile)) {
+      rmSync(stalePidFile, { force: true });
+    }
     embeddedPg = new EmbeddedPostgres({
       databaseDir: pgDir,
       port: pgPort,
