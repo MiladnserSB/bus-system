@@ -67,9 +67,12 @@ export class SmsProvider {
       }
     }
 
-    const displayMessage = options?.sensitive
-      ? '[REDACTED_OTP_MESSAGE]'
-      : message;
+    const nodeEnv =
+      this.configService.get<string>('nodeEnv') ??
+      this.configService.get<string>('NODE_ENV');
+    const isProduction = nodeEnv === 'production';
+    const displayMessage =
+      options?.sensitive && isProduction ? '[REDACTED_OTP_MESSAGE]' : message;
     this.logger.log(`[SMS:log] to=${phone} body=${displayMessage}`);
     return { sent: true, provider: 'log' };
   }
