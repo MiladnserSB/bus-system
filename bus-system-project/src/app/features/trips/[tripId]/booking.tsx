@@ -7,7 +7,6 @@ import {
   AppButton,
   AppHeader,
   AppInput,
-  ConfirmModal,
   ErrorBanner,
   ScreenContainer,
   Toast,
@@ -20,7 +19,6 @@ import {
   normalizeSyrianPhone,
   toWesternDigits,
 } from '@/shared/constants/helpers';
-import { useExpiresAtCountdown } from '@/shared/hooks/useCountdown';
 import { ArStrings } from '@/shared/i18n/ar';
 import { Colors, FontFamilies, FontSizes, Radii, Spacing, TouchTargets } from '@/shared/theme';
 import { AuthUser, PaymentMethod } from '@/shared/types/api.types';
@@ -73,8 +71,6 @@ export default function BookingPassengersScreen() {
 
   // Stable Idempotency-Key per checkout attempt so retries never double-book
   const idempotencyKeyRef = useRef<string>(generateClientId('book'));
-
-  const { formattedTime, isExpired } = useExpiresAtCountdown(params.holdExpiresAt || null);
 
   useEffect(() => {
     void SecureStorage.getUser().then((user) => {
@@ -235,21 +231,11 @@ export default function BookingPassengersScreen() {
             title={ArStrings.passengers.confirmBookingCta}
             onPress={handleSubmitBooking}
             loading={submitting}
-            disabled={seatList.length === 0 || isExpired}
+            disabled={seatList.length === 0}
           />
         </View>
       }
     >
-      {/* Hold Countdown */}
-      {params.holdExpiresAt ? (
-        <View style={styles.timerBanner}>
-          <Ionicons name="timer-outline" size={18} color="#92400E" />
-          <Text style={styles.timerText}>
-            {ArStrings.seats.holdTimerPrefix} {formattedTime}
-          </Text>
-        </View>
-      ) : null}
-
       {/* Quick Actions */}
       <View style={styles.helperActions}>
         {cachedUser ? (
@@ -358,16 +344,6 @@ export default function BookingPassengersScreen() {
           <Text style={styles.summaryMeta}>{ArStrings.ticket.cancelPolicyNotice}</Text>
         </View>
       ) : null}
-
-      <ConfirmModal
-        visible={isExpired}
-        title={ArStrings.seats.holdExpiredTitle}
-        message={ArStrings.seats.holdExpiredMessage}
-        confirmTitle="العودة لاختيار المقاعد"
-        cancelTitle={ArStrings.app.back}
-        onConfirm={() => router.back()}
-        onCancel={() => router.back()}
-      />
 
       <Toast message={toast} visible={Boolean(toast)} onDismiss={() => setToast('')} type="info" />
     </ScreenContainer>

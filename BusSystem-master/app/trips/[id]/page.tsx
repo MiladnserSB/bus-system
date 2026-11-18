@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
   ArrowRight,
-  Clock,
   Printer,
   RefreshCw,
   TicketCheck,
-  Unlock,
   Users,
 } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
@@ -33,10 +31,9 @@ import {
 import TicketPrintModal from '@/components/ui/TicketPrintModal';
 import { useToast } from '@/components/ui/ToastProvider';
 import { WebApiError } from '@/core/api/client';
-import { bookingService, holdService, tripService } from '@/core/api/services';
+import { bookingService, tripService } from '@/core/api/services';
 import AuthGuard from '@/core/auth/AuthGuard';
 import {
-  formatCountdownMMSS,
   formatPriceSyp,
   generateIdempotencyKey,
   isValidSyrianPhone,
@@ -44,7 +41,6 @@ import {
 } from '@/core/utils/formatters';
 import { ArWeb } from '@/i18n/ar';
 import {
-  HoldResponse,
   PaymentMethod,
   SeatDto,
   SeatMapResponse,
@@ -76,9 +72,6 @@ function TripDetailContent() {
 
   // Desk Booking State
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [hold, setHold] = useState<HoldResponse | null>(null);
-  const [holdSecondsLeft, setHoldSecondsLeft] = useState(0);
-  const [holdingSeats, setHoldingSeats] = useState(false);
   const [passengers, setPassengers] = useState<Record<string, PassengerDraft>>({});
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH_OFFICE');
   const [submittingBooking, setSubmittingBooking] = useState(false);
@@ -146,29 +139,6 @@ function TripDetailContent() {
     return () => clearInterval(timer);
   }, [trip, refreshSeatMapQuietly]);
 
-  // Hold 5-minute countdown timer
-  useEffect(() => {
-    if (!hold) {
-      setHoldSecondsLeft(0);
-      return;
-    }
-    const updateRemaining = () => {
-      const diffSec = Math.max(
-        0,
-        Math.floor((new Date(hold.expiresAt).getTime() - Date.now()) / 1000),
-      );
-      setHoldSecondsLeft(diffSec);
-      if (diffSec === 0) {
-        setHold(null);
-        showToast('انتهت مهلة التثبيت المؤقت للمقاعد. يرجى إعادة التثبيت.', 'error');
-        void refreshSeatMapQuietly();
-      }
-    };
-    updateRemaining();
-    const interval = setInterval(updateRemaining, 1000);
-    return () => clearInterval(interval);
-  }, [hold, showToast, refreshSeatMapQuietly]);
-
   const isTripBookable = useMemo(() => {
     if (!trip) return false;
     return trip.status === 'OPEN' || trip.status === 'SCHEDULED';
@@ -176,10 +146,6 @@ function TripDetailContent() {
 
   function handleToggleSeat(seat: SeatDto) {
     if (!isTripBookable) return;
-    if (hold) {
-      showToast('قم بتحرير القفل المؤقت أولاً لتعديل المقاعد المختارة.', 'info');
-      return;
-    }
     if (seat.status === 'BOOKED' || seat.status === 'HELD') return;
 
     setSelectedSeats((prev) => {
@@ -203,44 +169,6 @@ function TripDetailContent() {
       });
       return next;
     });
-  }
-
-  async function handleHoldSeats() {
-    if (selectedSeats.length === 0) {
-      showToast('اختر مقعداً واحداً على الأقل من المخطط.', 'error');
-      return;
-    }
-    setHoldingSeats(true);
-    try {
-      const holdRes = await holdService.createHold(tripId, selectedSeats);
-      setHold(holdRes);
-      idempotencyKeyRef.current = generateIdempotencyKey('desk-book');
-      showToast(`تم تثبيت ${holdRes.seatNumbers.length} مقعد لمدة 5 دقائق.`);
-      await refreshSeatMapQuietly();
-    } catch (err) {
-      showToast(
-        err instanceof WebApiError ? err.message : 'تعذر تثبيت المقاعد المختارة.',
-        'error',
-      );
-      await refreshSeatMapQuietly();
-    } finally {
-      setHoldingSeats(false);
-    }
-  }
-
-  async function handleReleaseHold() {
-    if (!hold) return;
-    try {
-      await holdService.releaseHold(hold.holdId);
-      setHold(null);
-      showToast('تم تحرير القفل المؤقت عن المقاعد.');
-      await refreshSeatMapQuietly();
-    } catch (err) {
-      showToast(
-        err instanceof WebApiError ? err.message : 'تعذر فك التثبيت المؤقت.',
-        'error',
-      );
-    }
   }
 
   function copyFirstPassengerToAll() {
@@ -295,7 +223,6 @@ function TripDetailContent() {
       const res = await bookingService.create(
         {
           tripId,
-          holdId: hold?.holdId,
           passengers: passengerPayloads,
           contactName: passengerPayloads[0]?.passengerName,
           contactPhone: passengerPayloads[0]?.passengerPhone,
@@ -304,7 +231,6 @@ function TripDetailContent() {
         idempotencyKeyRef.current,
       );
 
-      setHold(null);
       setSelectedSeats([]);
       setPassengers({});
       idempotencyKeyRef.current = generateIdempotencyKey('desk-book');
@@ -432,12 +358,6 @@ function TripDetailContent() {
                       <TicketCheck className="h-5 w-5 text-brand-600" />
                       ملخص الحجز الفوري
                     </h2>
-                    {hold ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 px-3 py-1 text-xs font-extrabold tabular-nums">
-                        <Clock className="h-3.5 w-3.5" />
-                        متبقي {formatCountdownMMSS(holdSecondsLeft)}
-                      </span>
-                    ) : null}
                   </div>
 
                   {!isTripBookable ? (
@@ -468,27 +388,6 @@ function TripDetailContent() {
                           {formatPriceSyp(totalCost)}
                         </span>
                       </div>
-
-                      {!hold ? (
-                        <Button
-                          className="w-full"
-                          variant="accent"
-                          loading={holdingSeats}
-                          onClick={() => void handleHoldSeats()}
-                        >
-                          تثبيت المقاعد مؤقتاً (5 دقائق) وإدخال الركاب
-                        </Button>
-                      ) : (
-                        <Button
-                          className="w-full"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleReleaseHold()}
-                        >
-                          <Unlock className="h-4 w-4" />
-                          تحرير القفل وتعديل اختيار المقاعد
-                        </Button>
-                      )}
 
                       <form onSubmit={handleConfirmBooking} className="space-y-4 pt-2 border-t border-line">
                         {selectedSeats.length > 1 ? (

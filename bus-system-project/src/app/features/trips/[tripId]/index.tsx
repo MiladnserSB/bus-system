@@ -1,12 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ApiError, holdsApi, tripsApi } from '@/shared/api';
+import { tripsApi } from '@/shared/api';
 import {
   AppButton,
   AppHeader,
-  ConfirmModal,
   ErrorBanner,
   ScreenContainer,
   SeatMapGrid,
@@ -14,7 +13,6 @@ import {
   Toast,
 } from '@/shared/components';
 import { formatDateSyrian, formatPrice, formatTime24h } from '@/shared/constants/helpers';
-import { useExpiresAtCountdown } from '@/shared/hooks/useCountdown';
 import { useSeatPolling } from '@/shared/hooks/useSeatPolling';
 import { ArStrings } from '@/shared/i18n/ar';
 import { Colors, FontFamilies, FontSizes, Radii, Spacing, TouchTargets } from '@/shared/theme';
@@ -33,28 +31,7 @@ export default function TripSeatSelectionScreen() {
 
   const [tripDetail, setTripDetail] = useState<TripDetailDto | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
-  const [holdId, setHoldId] = useState<string | null>(null);
-  const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
-  const [mutatingSeat, setMutatingSeat] = useState(false);
-  const [expiredModalVisible, setExpiredModalVisible] = useState(false);
   const [toast, setToast] = useState('');
-
-  const navigatingForwardRef = useRef(false);
-  const activeHoldRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    activeHoldRef.current = holdId;
-  }, [holdId]);
-
-  const handleHoldExpired = useCallback(() => {
-    if (!activeHoldRef.current) return;
-    setHoldId(null);
-    setHoldExpiresAt(null);
-    setSelectedSeats([]);
-    setExpiredModalVisible(true);
-  }, []);
-
-  const { formattedTime } = useExpiresAtCountdown(holdExpiresAt, handleHoldExpired);
 
   useEffect(() => {
     if (!tripId || Number.isNaN(tripId)) return;
@@ -66,19 +43,13 @@ export default function TripSeatSelectionScreen() {
 
   const fetchSeats = useCallback(() => tripsApi.getSeatMap(tripId), [tripId]);
   const handleSeatMapData = useCallback((map: { seats: SeatDto[] }) => {
-    const heldByMe = map.seats
-      .filter((s) => s.status === 'HELD_BY_ME')
-      .map((s) => s.seatNumber);
-
-    if (heldByMe.length > 0) {
-      setSelectedSeats((prev) => (prev.length === 0 ? heldByMe : prev));
-      const earliestExpiry = map.seats.find(
-        (s) => s.status === 'HELD_BY_ME' && s.holdExpiresAt,
-      )?.holdExpiresAt;
-      if (earliestExpiry) {
-        setHoldExpiresAt((prev) => prev ?? earliestExpiry);
-      }
-    }
+    // Drop any locally selected seats if they were booked concurrently during polling
+    setSelectedSeats((prev) =>
+      prev.filter((sn) => {
+        const match = map.seats.find((s) => s.seatNumber === sn);
+        return !match || match.status === 'AVAILABLE' || match.status === 'HELD_BY_ME';
+      }),
+    );
   }, []);
 
   const {
@@ -89,48 +60,13 @@ export default function TripSeatSelectionScreen() {
     refreshNow,
   } = useSeatPolling(fetchSeats, Boolean(tripId && !Number.isNaN(tripId)), handleSeatMapData);
 
-  // Release temporary Redis hold if user exits screen backward without proceeding
-  useFocusEffect(
-    useCallback(() => {
-      navigatingForwardRef.current = false;
-      return () => {
-        if (!navigatingForwardRef.current && activeHoldRef.current) {
-          void holdsApi.releaseHold(activeHoldRef.current).catch(() => {});
-        }
-      };
-    }, []),
-  );
+  const handleToggleSeat = (seat: SeatDto) => {
+    if (selectedSeats.includes(seat.seatNumber)) {
+      setSelectedSeats((prev) => prev.filter((s) => s !== seat.seatNumber));
+      return;
+    }
 
-  const handleToggleSeat = async (seat: SeatDto) => {
-    if (mutatingSeat) return;
-
-    const alreadySelected =
-      selectedSeats.includes(seat.seatNumber) || seat.status === 'HELD_BY_ME';
-
-    if (alreadySelected) {
-      const nextSeats = selectedSeats.filter((s) => s !== seat.seatNumber);
-      setMutatingSeat(true);
-      try {
-        if (holdId) {
-          await holdsApi.releaseHold(holdId).catch(() => {});
-        }
-        if (nextSeats.length > 0) {
-          const newHold = await holdsApi.createHold(tripId, nextSeats);
-          setHoldId(newHold.holdId);
-          setHoldExpiresAt(newHold.expiresAt);
-          setSelectedSeats(newHold.seatNumbers);
-        } else {
-          setHoldId(null);
-          setHoldExpiresAt(null);
-          setSelectedSeats([]);
-        }
-        await refreshNow(true);
-      } catch (err) {
-        setToast(err instanceof ApiError ? err.message : 'تعذر تحديث اختيار المقعد.');
-        await refreshNow(true);
-      } finally {
-        setMutatingSeat(false);
-      }
+    if (seat.status !== 'AVAILABLE' && seat.status !== 'HELD_BY_ME') {
       return;
     }
 
@@ -139,36 +75,18 @@ export default function TripSeatSelectionScreen() {
       return;
     }
 
-    const nextSeats = [...selectedSeats, seat.seatNumber];
-    setMutatingSeat(true);
-    try {
-      const res = await holdsApi.createHold(tripId, nextSeats);
-      setHoldId(res.holdId);
-      setHoldExpiresAt(res.expiresAt);
-      setSelectedSeats(res.seatNumbers);
-      await refreshNow(true);
-    } catch (err) {
-      const msg =
-        err instanceof ApiError ? err.message : 'تعذر حجز هذا المقعد مؤقتاً، قد يكون اختاره مسافر آخر.';
-      setToast(msg);
-      await refreshNow(true);
-    } finally {
-      setMutatingSeat(false);
-    }
+    setSelectedSeats((prev) => [...prev, seat.seatNumber]);
   };
 
   const handleContinue = () => {
-    if (selectedSeats.length === 0 || !holdId) {
+    if (selectedSeats.length === 0) {
       setToast(ArStrings.seats.selectAtLeastOne);
       return;
     }
-    navigatingForwardRef.current = true;
     router.push({
       pathname: `/features/trips/${tripId}/booking`,
       params: {
         seats: selectedSeats.join(','),
-        holdId,
-        holdExpiresAt: holdExpiresAt ?? '',
         unitPrice: String(seatMap?.price ?? tripDetail?.price ?? 0),
         routeLabel: tripDetail
           ? `${tripDetail.origin.nameAr} ← ${tripDetail.destination.nameAr}`
@@ -228,32 +146,21 @@ export default function TripSeatSelectionScreen() {
           <AppButton
             title={ArStrings.seats.continueCta}
             onPress={handleContinue}
-            disabled={selectedSeats.length === 0 || mutatingSeat}
-            loading={mutatingSeat}
+            disabled={selectedSeats.length === 0}
           />
         </View>
       }
     >
-      {/* Active 5-Minute Redis Hold Countdown Banner */}
-      {holdExpiresAt && selectedSeats.length > 0 ? (
-        <View style={styles.holdTimerBanner}>
-          <Ionicons name="timer-outline" size={18} color="#92400E" />
-          <Text style={styles.holdTimerText}>
-            {ArStrings.seats.holdTimerPrefix} {formattedTime}
+      <View style={styles.infoBanner}>
+        <Text style={styles.infoBannerText}>
+          المطلوب: {requestedPassengers} مقعد · {ArStrings.seats.maxSeatsNotice}
+        </Text>
+        {tripDetail ? (
+          <Text style={styles.infoBannerDate}>
+            {formatDateSyrian(tripDetail.departDateDamascus)}
           </Text>
-        </View>
-      ) : (
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoBannerText}>
-            المطلوب: {requestedPassengers} مقعد · {ArStrings.seats.maxSeatsNotice}
-          </Text>
-          {tripDetail ? (
-            <Text style={styles.infoBannerDate}>
-              {formatDateSyrian(tripDetail.departDateDamascus)}
-            </Text>
-          ) : null}
-        </View>
-      )}
+        ) : null}
+      </View>
 
       {error ? <ErrorBanner message={error} onRetry={() => void refreshNow(false)} /> : null}
 
@@ -265,26 +172,9 @@ export default function TripSeatSelectionScreen() {
           selectedSeatNumbers={selectedSeats}
           busTypeName={seatMap.busType.nameAr}
           layout={seatMap.busType.layout}
-          disabled={mutatingSeat}
-          onToggleSeat={(seat) => void handleToggleSeat(seat)}
+          onToggleSeat={(seat) => handleToggleSeat(seat)}
         />
       )}
-
-      <ConfirmModal
-        visible={expiredModalVisible}
-        title={ArStrings.seats.holdExpiredTitle}
-        message={ArStrings.seats.holdExpiredMessage}
-        confirmTitle="حسناً"
-        cancelTitle={ArStrings.app.close}
-        onConfirm={() => {
-          setExpiredModalVisible(false);
-          void refreshNow(true);
-        }}
-        onCancel={() => {
-          setExpiredModalVisible(false);
-          void refreshNow(true);
-        }}
-      />
 
       <Toast message={toast} visible={Boolean(toast)} onDismiss={() => setToast('')} type="error" />
     </ScreenContainer>
