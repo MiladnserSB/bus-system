@@ -69,6 +69,31 @@ export class VerifyOtpDto {
   consentAccepted?: boolean;
 }
 
+export class PhoneLoginDto {
+  @ApiProperty({
+    description: 'رقم الهاتف السوري للدخول المباشر (وضع الديمو)',
+    example: '+963932111222',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'رقم الهاتف مطلوب' })
+  phone: string;
+
+  @ApiPropertyOptional({
+    description: 'اسم الزبون عند التسجيل لأول مرة',
+    example: 'رامي الدمشقي',
+  })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'موافقة الزبون على معالجة بيانات الاتصال',
+    example: true,
+  })
+  @IsOptional()
+  consentAccepted?: boolean;
+}
+
 export class RefreshTokenDto {
   @ApiProperty({ description: 'رمز التحديث (Refresh Token)' })
   @IsString()

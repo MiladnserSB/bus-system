@@ -21,6 +21,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import {
   ChangePasswordDto,
   LogoutDto,
+  PhoneLoginDto,
   RefreshTokenDto,
   RequestOtpDto,
   StaffLoginDto,
@@ -254,7 +255,31 @@ export class AuthService {
     }
 
     await this.redis.client.del(codeKey);
+    return this.upsertCustomerAndIssueSession(
+      phone,
+      dto.name,
+      dto.consentAccepted,
+    );
+  }
 
+  /**
+   * Direct customer sign-in by phone number without OTP (temporarily enabled for
+   * demo filming & testing).
+   */
+  async phoneLogin(dto: PhoneLoginDto) {
+    const phone = normalizePhone(dto.phone);
+    return this.upsertCustomerAndIssueSession(
+      phone,
+      dto.name,
+      dto.consentAccepted,
+    );
+  }
+
+  private async upsertCustomerAndIssueSession(
+    phone: string,
+    name?: string,
+    consentAccepted?: boolean,
+  ) {
     let user = await this.prisma.user.findUnique({ where: { phone } });
     if (user && !user.isActive) {
       throw new AppException(
@@ -264,23 +289,31 @@ export class AuthService {
       );
     }
 
+    if (user && user.role !== Role.CUSTOMER) {
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCodes.FORBIDDEN,
+        'يرجى تسجيل دخول حسابات الموظفين عبر لوحة الإدارة',
+      );
+    }
+
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          name: dto.name?.trim() || 'مسافر',
+          name: name?.trim() || 'مسافر',
           phone,
           role: Role.CUSTOMER,
           isActive: true,
           mustChangePassword: false,
-          consentAcceptedAt: dto.consentAccepted ? new Date() : null,
+          consentAcceptedAt: consentAccepted ? new Date() : null,
         },
       });
-    } else if (dto.name && dto.name.trim() && user.name === 'مسافر') {
+    } else if (name && name.trim() && user.name === 'مسافر') {
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
-          name: dto.name.trim(),
-          ...(dto.consentAccepted && !user.consentAcceptedAt
+          name: name.trim(),
+          ...(consentAccepted && !user.consentAcceptedAt
             ? { consentAcceptedAt: new Date() }
             : {}),
         },

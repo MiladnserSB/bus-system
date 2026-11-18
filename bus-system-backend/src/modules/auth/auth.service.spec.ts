@@ -190,6 +190,30 @@ describe('AuthService', () => {
     expect(verified.accessToken).toBe('signed-access-jwt');
   });
 
+  it('signs in or registers customer directly via phoneLogin without OTP', async () => {
+    const phone = '+963932111222';
+    prisma.user.findUnique.mockResolvedValueOnce({
+      id: 11,
+      name: 'رامي الدمشقي',
+      username: null,
+      email: null,
+      phone,
+      role: Role.CUSTOMER,
+      isActive: true,
+      mustChangePassword: false,
+      tokenVersion: 0,
+    });
+    prisma.refreshToken.create.mockResolvedValueOnce({ id: 3 });
+
+    const session = await service.phoneLogin({
+      phone: '0932111222',
+      consentAccepted: true,
+    });
+    expect(session.user.id).toBe(11);
+    expect(session.user.role).toBe(Role.CUSTOMER);
+    expect(session.accessToken).toBe('signed-access-jwt');
+  });
+
   it('rotates refresh tokens and revokes on logout', async () => {
     prisma.refreshToken.findUnique.mockResolvedValue({
       id: 5,

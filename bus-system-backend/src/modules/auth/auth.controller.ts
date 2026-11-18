@@ -9,6 +9,7 @@ import { AuthService } from './auth.service.js';
 import {
   ChangePasswordDto,
   LogoutDto,
+  PhoneLoginDto,
   RefreshTokenDto,
   RequestOtpDto,
   StaffLoginDto,
@@ -45,6 +46,17 @@ export class AuthController {
   @ApiOperation({ summary: 'التحقق من OTP وتسجيل الدخول أو إنشاء حساب زبون' })
   verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('phone-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'تسجيل دخول مباشر برقم الهاتف بدون OTP (مؤقتاً للديمو والاختبار)',
+  })
+  phoneLogin(@Body() dto: PhoneLoginDto) {
+    return this.authService.phoneLogin(dto);
   }
 
   @Public()

@@ -78,6 +78,15 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 export function createServices(client: HttpClientLike, storage: ApiStorageAdapter) {
+  const persistAuthSession = async (res: AuthTokensResponse) => {
+    await storage.saveAuthSession({
+      accessToken: res.accessToken,
+      refreshToken: res.refreshToken,
+      user: res.user,
+    });
+    return res;
+  };
+
   const authApi = {
     requestOtp(phone: string): Promise<RequestOtpResponse> {
       return client.post('/auth/otp/request', { phone }, { skipAuth: true });
@@ -94,12 +103,20 @@ export function createServices(client: HttpClientLike, storage: ApiStorageAdapte
         params,
         { skipAuth: true },
       );
-      await storage.saveAuthSession({
-        accessToken: res.accessToken,
-        refreshToken: res.refreshToken,
-        user: res.user,
-      });
-      return res;
+      return persistAuthSession(res);
+    },
+
+    async phoneLogin(params: {
+      phone: string;
+      name?: string;
+      consentAccepted?: boolean;
+    }): Promise<AuthTokensResponse> {
+      const res = await client.post<AuthTokensResponse>(
+        '/auth/phone-login',
+        params,
+        { skipAuth: true },
+      );
+      return persistAuthSession(res);
     },
 
     async logout(): Promise<void> {

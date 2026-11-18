@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ApiError, authApi } from '@/shared/api';
+import { ApiError, authApi, FcmService } from '@/shared/api';
 import {
   AppButton,
   AppHeader,
@@ -30,7 +30,7 @@ export default function AuthPhoneScreen() {
     if (apiError) setApiError(null);
   };
 
-  const handleRequestOtp = async () => {
+  const handlePhoneLogin = async () => {
     setApiError(null);
     const normalized = normalizeSyrianPhone(phoneDigits);
     if (!normalized) {
@@ -44,18 +44,16 @@ export default function AuthPhoneScreen() {
 
     setLoading(true);
     try {
-      const res = await authApi.requestOtp(normalized);
-      router.push({
-        pathname: '/features/(auth)/otp',
-        params: {
-          phone: normalized,
-          name: name.trim(),
-          resendAfter: String(res.resendAfterSeconds ?? 60),
-        },
-      } as Href);
+      await authApi.phoneLogin({
+        phone: normalized,
+        name: name.trim() || undefined,
+        consentAccepted: true,
+      });
+      await FcmService.registerDevice();
+      router.replace('/features/(tabs)' as Href);
     } catch (err) {
       setApiError(
-        err instanceof ApiError ? err.message : 'تعذر إرسال رمز التحقق حالياً. أعد المحاولة.',
+        err instanceof ApiError ? err.message : 'تعذر تسجيل الدخول حالياً. أعد المحاولة.',
       );
     } finally {
       setLoading(false);
@@ -74,8 +72,8 @@ export default function AuthPhoneScreen() {
       footer={
         <View style={styles.footerStack}>
           <AppButton
-            title={ArStrings.auth.sendOtpCta}
-            onPress={handleRequestOtp}
+            title={ArStrings.auth.phoneLoginCta}
+            onPress={handlePhoneLogin}
             loading={loading}
             variant="primary"
           />
