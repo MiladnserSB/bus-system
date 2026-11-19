@@ -1,0 +1,42 @@
+تعليمات تشغيل السيدر (Seeder) وتعبئة قاعدة البيانات — مشروع BusWay
+=====================================================================
+
+ملف السيدر: bus-system-backend/prisma/seed.ts
+المضبوط في: bus-system-backend/prisma.config.ts
+
+---------------------------------------------------------------------
+الطريقة الأولى: التلقائية (الأسهل للتشغيل المحلي)
+---------------------------------------------------------------------
+من داخل مجلد bus-system-backend:
+  npm install
+  npm run dev
+
+يقوم السكربت (scripts/dev-bootstrap.mjs) تلقائياً بتشغيل PostgreSQL وRedis محلياً عند عدم توفرهما، وتوليد Prisma Client عند الحاجة، وتطبيق الـ Migrations، ثم تشغيل السيدر (npx prisma db seed) قبل تشغيل الخادم.
+
+---------------------------------------------------------------------
+الطريقة الثانية: اليدوية (عند استخدام PostgreSQL خارجي جاهز)
+---------------------------------------------------------------------
+1. أنشئ ملف .env داخل bus-system-backend اعتماداً على .env.example، وتأكد من ضبط DATABASE_URL:
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/bus_system?schema=public
+
+2. من داخل مجلد bus-system-backend نفّذ بالترتيب:
+   npm install
+   npm run prisma:generate
+   npm run prisma:migrate:deploy
+   npm run prisma:seed
+
+(ويمكن استبدال الخطوة الأخيرة بـ npx prisma db seed أو npx tsx prisma/seed.ts)
+
+---------------------------------------------------------------------
+ملاحظات سريعة
+---------------------------------------------------------------------
+- السيدر آمن لإعادة التشغيل (Idempotent) ولا يكرر البيانات عند تشغيله مجدداً.
+- يعبّئ تلقائياً البيانات الأساسية (الإعدادات، 8 مدن، 6 أنواع باصات ومقاعدها، حساب المدير) + بيانات الديمو التجريبية.
+- لتعبئة البيانات الأساسية فقط دون بيانات الديمو:
+  PowerShell: $env:SEED_DEMO="false"; npm run prisma:seed
+  Bash/Linux: SEED_DEMO=false npm run prisma:seed
+
+الحسابات المُنشأة افتراضياً:
+- المدير العام (ADMIN): admin / Admin@123456
+- الاستقبال (RECEPTIONIST): khaled.rec أو reem.rec / Reception@123
+- المسافرون (CUSTOMER): 0932111222 أو 0944333444 (+963...)
